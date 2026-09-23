@@ -24,22 +24,21 @@ const app = express();
 // GLOBAL MIDDLEWARE
 // ================================
 
-const allowedOrigins = (
-  process.env.FRONTEND_URL || "http://localhost:5500"
-)
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  "https://budnbudder.vercel.app",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500",
+];
 
-  app.disable("x-powered-by");
+app.disable("x-powered-by");
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no Origin header.
-      // Useful for Postman, server-to-server requests,
-      // and local health checks.
       console.log("CORS request from:", origin);
+
+      // Allow requests without an Origin header
+      // such as Postman/server-to-server requests.
       if (!origin) {
         return callback(null, true);
       }
@@ -47,6 +46,8 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+
+      console.warn("Blocked CORS origin:", origin);
 
       return callback(
         new Error("CORS origin not allowed")
@@ -114,6 +115,13 @@ app.use(
 // ================================
 // HEALTH CHECK
 // ================================
+
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Bud N' Budder API is running",
+  });
+});
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
