@@ -1,18 +1,60 @@
-const { Resend } = require("resend");
+const { BrevoClient } = require("@getbrevo/brevo");
 
-const resend = new Resend(
-  process.env.RESEND_API_KEY
-);
+const brevo = new BrevoClient({
+  apiKey: process.env.BREVO_API_KEY,
+});
+
+const sendEmail = async ({
+  email,
+  subject,
+  html,
+}) => {
+  if (!email) {
+    throw new Error("Recipient email is required.");
+  }
+
+  if (!subject) {
+    throw new Error("Email subject is required.");
+  }
+
+  if (!html) {
+    throw new Error("Email HTML content is required.");
+  }
+
+  return await brevo.transactionalEmails.sendTransacEmail({
+    sender: {
+      email: process.env.BREVO_FROM_EMAIL,
+      name:
+        process.env.BREVO_FROM_NAME ||
+        "Bud N' Budder",
+    },
+
+    to: [
+      {
+        email,
+      },
+    ],
+
+    subject,
+
+    htmlContent: html,
+  });
+};
+
+// ==========================================
+// SEND ADMIN RESET CODE
+// ==========================================
 
 const sendAdminResetCode = async (
   email,
   code
 ) => {
-  await resend.emails.send({
-    from: process.env.RESEND_FROM,
-    to: email,
+  await sendEmail({
+    email,
+
     subject:
       "Your Bud N' Budder Admin Verification Code",
+
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2>Bud N' Budder Admin</h2>
@@ -42,15 +84,20 @@ const sendAdminResetCode = async (
   });
 };
 
+// ==========================================
+// SEND CUSTOMER RESET CODE
+// ==========================================
+
 const sendCustomerResetCode = async (
   email,
   code
 ) => {
-  await resend.emails.send({
-    from: process.env.RESEND_FROM,
-    to: email,
+  await sendEmail({
+    email,
+
     subject:
       "Your Bud N' Budder Password Reset Code",
+
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2>Bud N' Budder</h2>
@@ -91,10 +138,12 @@ const sendOrderConfirmation = async ({
   total,
   currency,
 }) => {
-  await resend.emails.send({
-    from: process.env.RESEND_FROM,
-    to: email,
-    subject: `Order ${orderNumber} confirmed`,
+  await sendEmail({
+    email,
+
+    subject:
+      `Order ${orderNumber} confirmed`,
+
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2>Bud N' Budder</h2>
@@ -140,10 +189,12 @@ const sendOrderStatusUpdate = async ({
   orderNumber,
   status,
 }) => {
-  await resend.emails.send({
-    from: process.env.RESEND_FROM,
-    to: email,
-    subject: `Order ${orderNumber} update`,
+  await sendEmail({
+    email,
+
+    subject:
+      `Order ${orderNumber} update`,
+
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2>Bud N' Budder</h2>
@@ -182,10 +233,12 @@ const sendPaymentConfirmation = async ({
   total,
   currency,
 }) => {
-  await resend.emails.send({
-    from: process.env.RESEND_FROM,
-    to: email,
-    subject: `Payment confirmed for ${orderNumber}`,
+  await sendEmail({
+    email,
+
+    subject:
+      `Payment confirmed for ${orderNumber}`,
+
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2>Payment Confirmed</h2>
@@ -227,10 +280,12 @@ const sendRefundConfirmation = async ({
   total,
   currency,
 }) => {
-  await resend.emails.send({
-    from: process.env.RESEND_FROM,
-    to: email,
-    subject: `Refund processed for ${orderNumber}`,
+  await sendEmail({
+    email,
+
+    subject:
+      `Refund processed for ${orderNumber}`,
+
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2>Refund Processed</h2>
@@ -261,6 +316,7 @@ const sendRefundConfirmation = async ({
 
 module.exports = {
   sendAdminResetCode,
+  sendCustomerResetCode,
   sendOrderConfirmation,
   sendOrderStatusUpdate,
   sendPaymentConfirmation,

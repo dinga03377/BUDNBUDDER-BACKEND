@@ -1,5 +1,7 @@
 const express = require("express");
 
+const multer = require("multer");
+
 const {
   getAdminProducts,
   getAdminProduct,
@@ -29,6 +31,40 @@ const validate = require(
 const router = express.Router();
 
 router.use(protectAdmin);
+
+router.post(
+  "/upload-image",
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No image uploaded.",
+        });
+      }
+
+      const result = await uploadImage(req.file);
+
+      return res.status(200).json({
+        success: true,
+        message: "Image uploaded successfully.",
+        image: result.url,
+        publicId: result.publicId,
+      });
+    } catch (error) {
+      console.error(
+        "Cloudinary upload error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to upload image.",
+      });
+    }
+  }
+);
 
 router.get("/", paginationValidation, validate, getAdminProducts);
 
