@@ -1,5 +1,4 @@
 const express = require("express");
-
 const multer = require("multer");
 
 const {
@@ -12,23 +11,35 @@ const {
 
 const {
   productIdValidation,
-} = require(
-  "../validators/product.validator"
-);
+} = require("../validators/product.validator");
 
 const {
   paginationValidation,
-} = require(
-  "../validators/pagination.validator"
-);
+} = require("../validators/pagination.validator");
 
 const protectAdmin = require("../middleware/adminAuth");
+const validate = require("../middleware/validation");
 
-const validate = require(
-  "../middleware/validation"
-);
+const { uploadImage } = require("../services/cloudinary.service");
 
 const router = express.Router();
+
+// Multer configuration
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("Only image files are allowed."));
+    }
+
+    cb(null, true);
+  },
+});
 
 router.use(protectAdmin);
 
@@ -66,14 +77,37 @@ router.post(
   }
 );
 
-router.get("/", paginationValidation, validate, getAdminProducts);
+router.get(
+  "/",
+  paginationValidation,
+  validate,
+  getAdminProducts
+);
 
-router.post("/", createProduct);
+router.post(
+  "/",
+  createProduct
+);
 
-router.get("/:id", productIdValidation, validate, getAdminProduct);
+router.get(
+  "/:id",
+  productIdValidation,
+  validate,
+  getAdminProduct
+);
 
-router.patch("/:id", productIdValidation, validate, updateProduct);
+router.patch(
+  "/:id",
+  productIdValidation,
+  validate,
+  updateProduct
+);
 
-router.delete("/:id", productIdValidation, validate, deleteProduct);
+router.delete(
+  "/:id",
+  productIdValidation,
+  validate,
+  deleteProduct
+);
 
 module.exports = router;
