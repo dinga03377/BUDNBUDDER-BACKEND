@@ -184,6 +184,70 @@ const getAdminOrder = async (
 };
 
 // ==========================================
+// CONFIRM ZELLE PAYMENT
+// ==========================================
+
+const confirmManualPayment = async (req, res) => {
+  try {
+    const { transactionId } = req.body;
+    if (!transactionId) {
+      return res.status(400).json({ success: false, message: "Transaction ID is required." });
+    }
+
+    const transaction = await Transaction.findById(transactionId);
+    if (!transaction || transaction.provider !== "zelle") {
+      return res.status(404).json({ success: false, message: "Zelle payment transaction not found." });
+    }
+
+    if (!transaction.customerClaimedPayment) {
+      return res.status(400).json({
+        success: false,
+        message: "The customer has not reported that the Zelle payment was sent yet.",
+      });
+    }
+
+    if (transaction.status === "success") {
+      return res.status(409).json({
+        success: false,
+        message: "This Zelle payment has already been verified.",
+      });
+    }
+
+    const { settleManualPayment } = require("../services/paymentSettlement.service");
+    const result = await settleManualPayment({
+      orderId: transaction.order,
+      transactionId: transaction._id,
+    });
+
+    // Record the admin audit event only after settlement succeeds.
+    transaction.verifiedAt = new Date();
+    transaction.verifiedBy = req.admin._id;
+    transaction.description = `Zelle payment verified by admin ${req.admin.email || req.admin._id}.`;
+    await transaction.save();
+
+    return res.json({
+      success: true,
+      message: "Zelle payment verified and order settled.",
+      audit: {
+        customerClaimedPayment: transaction.customerClaimedPayment,
+        customerClaimedAt: transaction.customerClaimedAt,
+        verifiedAt: transaction.verifiedAt,
+        verifiedBy: transaction.verifiedBy,
+      },
+      order: {
+        id: result.order._id,
+        orderNumber: result.order.orderNumber,
+        paymentStatus: result.order.paymentStatus,
+        status: result.order.status,
+      },
+    });
+  } catch (error) {
+    console.error("Confirm manual payment error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Unable to confirm payment." });
+  }
+};
+
+// ==========================================
 // UPDATE ORDER STATUS
 // ==========================================
 
@@ -288,6 +352,7 @@ const updateOrderStatus = async (
 };
 
 module.exports = {
+  confirmManualPayment,
   getAllOrders,
   getAdminOrder,
   updateOrderStatus,

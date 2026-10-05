@@ -84,6 +84,53 @@ const sendAdminResetCode = async (
   });
 };
 
+
+// ==========================================
+// SEND CUSTOMER EMAIL VERIFICATION CODE
+// ==========================================
+
+const sendCustomerEmailVerificationCode = async (
+  email,
+  code
+) => {
+  await sendEmail({
+    email,
+
+    subject:
+      "Verify your Bud N' Budder email address",
+
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Verify your email</h2>
+
+        <p>
+          Thanks for creating your Bud N' Budder account.
+        </p>
+
+        <p>
+          Enter this verification code to confirm that you own this email address:
+        </p>
+
+        <h1 style="letter-spacing: 8px;">
+          ${code}
+        </h1>
+
+        <p>
+          This code expires in 10 minutes.
+        </p>
+
+        <p>
+          After your email is verified, any eligible guest orders made with this email address can be securely linked to your account.
+        </p>
+
+        <p>
+          If you did not create this account, you can safely ignore this email.
+        </p>
+      </div>
+    `,
+  });
+};
+
 // ==========================================
 // SEND CUSTOMER RESET CODE
 // ==========================================
@@ -317,6 +364,7 @@ const sendRefundConfirmation = async ({
 module.exports = {
   sendAdminResetCode,
   sendCustomerResetCode,
+  sendCustomerEmailVerificationCode,
   sendOrderConfirmation,
   sendOrderStatusUpdate,
   sendPaymentConfirmation,

@@ -78,6 +78,29 @@ const transactionSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+
+    // Zelle customer claim / admin verification audit trail.
+    customerClaimedPayment: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    customerClaimedAt: {
+      type: Date,
+      default: null,
+    },
+
+    verifiedAt: {
+      type: Date,
+      default: null,
+    },
+
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
   },
   {
     timestamps: true,

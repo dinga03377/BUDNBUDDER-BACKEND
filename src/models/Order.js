@@ -211,6 +211,14 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Internal recovery marker for post-payment work. Null preserves existing orders.
+    paymentFulfillmentStatus: {
+      type: String,
+      enum: ["processing", "completed", "needs_review"],
+      default: null,
+      index: true,
+    },
+
     paymentMethod: {
       type: String,
       default: "",

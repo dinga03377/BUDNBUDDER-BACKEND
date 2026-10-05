@@ -2,6 +2,8 @@ const express = require("express");
 
 const {
   register,
+  verifyEmail,
+  resendEmailVerification,
   login,
   logout,
   getMe,
@@ -39,6 +41,16 @@ router.post(
   loginValidation,
   validate,
   login
+);
+
+router.post(
+  "/verify-email",
+  verifyEmail
+);
+
+router.post(
+  "/resend-verification",
+  resendEmailVerification
 );
 
 router.post("/logout", logout);

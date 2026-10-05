@@ -1,29 +1,15 @@
-const express = require("express");
-
-const {
-  createPaymentIntent,
-} = require(
-  "../controllers/payment.controller"
-);
-
-const optionalAuth = require(
-  "../middleware/optionalAuth"
-);
-
-// const {
-//   productIdValidation,
-// } = require(
-//   "../validators/product.validator"
-// );
-
-// const validate = require("../middleware/validation");
+const express = require('express');
+const { getPaymentConfig, createPaymentIntent, createVenmoOrder, captureVenmoOrder, createZelleOrder, claimZellePayment } = require('../controllers/payment.controller');
+const optionalAuth = require('../middleware/optionalAuth');
 
 const router = express.Router();
 
-router.post(
-  "/create-payment-intent",
-  optionalAuth,
-  createPaymentIntent
-);
+router.get('/payment-config', getPaymentConfig);
+
+router.post('/create-payment-intent', optionalAuth, createPaymentIntent);
+router.post('/create-venmo-order', optionalAuth, createVenmoOrder);
+router.post('/create-zelle-order', optionalAuth, createZelleOrder);
+router.post('/capture-venmo-order', optionalAuth, captureVenmoOrder);
+router.post('/claim-zelle-payment', optionalAuth, claimZellePayment);
 
 module.exports = router;

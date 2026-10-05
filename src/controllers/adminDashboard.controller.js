@@ -20,6 +20,7 @@ const getDashboardOverview = async (
   processingOrders,
   completedOrders,
   cancelledOrders,
+  pendingZelleVerifications,
 ] = await Promise.all([
   Order.countDocuments(),
 
@@ -41,6 +42,12 @@ const getDashboardOverview = async (
 
   Order.countDocuments({
     status: "cancelled",
+  }),
+
+  Transaction.countDocuments({
+    provider: "zelle",
+    status: "pending",
+    customerClaimedPayment: true,
   }),
 ]);
 

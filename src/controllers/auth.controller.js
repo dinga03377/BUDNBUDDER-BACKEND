@@ -3,9 +3,11 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 const User = require("../models/User");
+const Order = require("../models/Order");
 
 const {
   sendCustomerResetCode,
+  sendCustomerEmailVerificationCode,
 } = require("../services/email.service");
 
 const createToken = (userId) => {
@@ -103,22 +105,41 @@ const register = async (req, res) => {
       password: hashedPassword,
     });
 
-    const token = createToken(
-      user._id
+    // Do NOT link guest orders yet. Ownership of the email address must be
+    // verified first so another person cannot register using the email from
+    // someone else's guest order and claim that order.
+    const verificationCode = crypto
+      .randomInt(100000, 1000000)
+      .toString();
+
+    user.emailVerificationCodeHash = crypto
+      .createHash("sha256")
+      .update(verificationCode)
+      .digest("hex");
+
+    user.emailVerificationExpiresAt = new Date(
+      Date.now() + 10 * 60 * 1000
     );
 
-    setAuthCookie(res, token);
+    await user.save();
+
+    await sendCustomerEmailVerificationCode(
+      normalizedEmail,
+      verificationCode
+    );
 
     return res.status(201).json({
       success: true,
+      emailVerificationRequired: true,
       message:
-        "Account created successfully.",
+        "Account created successfully. Check your email for the verification code. Your previous guest orders will be linked after your email is verified.",
       user: {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         phone: user.phone,
+        emailVerified: user.emailVerified,
       },
     });
   } catch (error) {
@@ -131,6 +152,173 @@ const register = async (req, res) => {
       success: false,
       message:
         "Unable to create account.",
+    });
+  }
+};
+
+// ==========================================
+// VERIFY CUSTOMER EMAIL
+// ==========================================
+
+const verifyEmail = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and verification code are required.",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).select(
+      "+emailVerificationCodeHash +emailVerificationExpiresAt"
+    );
+
+    if (!user || user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: user?.emailVerified
+          ? "This email address is already verified."
+          : "Invalid or expired verification code.",
+      });
+    }
+
+    if (
+      !user.emailVerificationCodeHash ||
+      !user.emailVerificationExpiresAt ||
+      user.emailVerificationExpiresAt < new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification code.",
+      });
+    }
+
+    const codeHash = crypto
+      .createHash("sha256")
+      .update(String(code).trim())
+      .digest("hex");
+
+    if (codeHash !== user.emailVerificationCodeHash) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid verification code.",
+      });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationCodeHash = null;
+    user.emailVerificationExpiresAt = null;
+
+    await user.save();
+
+    // Only after ownership of the email address is proven do we attach
+    // historical guest orders. Never reassign an order already owned by a user.
+    const guestOrderLinkResult = await Order.updateMany(
+      {
+        user: null,
+        isGuest: true,
+        "customer.email": normalizedEmail,
+      },
+      {
+        $set: {
+          user: user._id,
+          isGuest: false,
+        },
+      }
+    );
+
+    const token = createToken(user._id);
+    setAuthCookie(res, token);
+
+    return res.status(200).json({
+      success: true,
+      emailVerified: true,
+      linkedGuestOrders: guestOrderLinkResult.modifiedCount,
+      message:
+        guestOrderLinkResult.modifiedCount > 0
+          ? `Email verified successfully. ${guestOrderLinkResult.modifiedCount} previous guest order(s) are now available in your account.`
+          : "Email verified successfully.",
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        emailVerified: user.emailVerified,
+      },
+    });
+  } catch (error) {
+    console.error("Verify customer email error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to verify email address.",
+    });
+  }
+};
+
+// ==========================================
+// RESEND CUSTOMER EMAIL VERIFICATION CODE
+// ==========================================
+
+const resendEmailVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email address is required.",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      "+emailVerificationCodeHash +emailVerificationExpiresAt"
+    );
+
+    if (!user || user.emailVerified) {
+      return res.status(200).json({
+        success: true,
+        message: "If the account requires verification, a new code has been sent.",
+      });
+    }
+
+    const verificationCode = crypto
+      .randomInt(100000, 1000000)
+      .toString();
+
+    user.emailVerificationCodeHash = crypto
+      .createHash("sha256")
+      .update(verificationCode)
+      .digest("hex");
+
+    user.emailVerificationExpiresAt = new Date(
+      Date.now() + 10 * 60 * 1000
+    );
+
+    await user.save();
+    await sendCustomerEmailVerificationCode(
+      normalizedEmail,
+      verificationCode
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "If the account requires verification, a new code has been sent.",
+    });
+  } catch (error) {
+    console.error("Bravo customer email verification resend error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to resend verification code.",
     });
   }
 };
@@ -748,6 +936,8 @@ const resetPassword = async (
 
 module.exports = {
   register,
+  verifyEmail,
+  resendEmailVerification,
   login,
   logout,
   getMe,

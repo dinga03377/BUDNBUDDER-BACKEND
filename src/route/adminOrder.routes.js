@@ -4,6 +4,7 @@ const {
   getAllOrders,
   getAdminOrder,
   updateOrderStatus,
+  confirmManualPayment,
 } = require(
   "../controllers/adminOrder.controller"
 );
@@ -59,6 +60,13 @@ router.patch(
   updateOrderStatusValidation,
   validate,
   updateOrderStatus
+);
+
+router.post(
+  "/:id/confirm-payment",
+  orderIdValidation,
+  validate,
+  confirmManualPayment
 );
 
 module.exports = router;

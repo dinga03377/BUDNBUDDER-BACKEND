@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const Cart = require("../models/Cart");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const { calculateOrderTotals } = require("../utils/orderPricing");
 
 const GUEST_CART_COOKIE = "guestCartId";
 
@@ -193,20 +194,7 @@ const createOrder = async (req, res) => {
      * tax and free shipping.
      */
 
-    const tax =
-      Math.round(
-        subtotal * 0.0875 * 100
-      ) / 100;
-
-    const shipping = 0;
-
-    const total =
-      Math.round(
-        (subtotal +
-          tax +
-          shipping) *
-          100
-      ) / 100;
+    const { tax, shipping, total } = calculateOrderTotals(subtotal);
 
     // --------------------------------------
     // CREATE ORDER
