@@ -4,7 +4,15 @@ const Admin = require("../models/Admin");
 
 const protectAdmin = async (req, res, next) => {
   try {
-    const token = req.cookies.adminToken;
+    // Safari/iOS can block the cross-site HTTP-only cookie used by the
+    // Vercel frontend -> Render backend setup. Prefer the Bearer token
+    // fallback when present, while keeping the cookie path for browsers
+    // that accept it.
+    const authHeader = req.headers.authorization || "";
+    const bearerToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+    const token = bearerToken || req.cookies.adminToken;
 
     if (!token) {
       return res.status(401).json({

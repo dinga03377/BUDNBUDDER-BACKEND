@@ -243,6 +243,7 @@ const loginAdmin = async (req, res) => {
       success: true,
       message:
         "Admin login successful.",
+      token,
       admin: {
         id: admin._id,
         email: admin.email,
